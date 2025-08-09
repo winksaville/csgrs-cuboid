@@ -1,30 +1,29 @@
-use clap::{ArgAction, Parser};
+use clap::{Parser,CommandFactory};
 
 type Mesh = csgrs::mesh::Mesh<()>;
 
 #[derive(Parser, Debug)]
-#[clap(disable_help_flag = true)]
-#[clap(author, version, about, long_about = None)]
+#[command(version, about = "Generate a cuboid mesh and write it to an STL file.", long_about = None)]
 struct Args {
-    /// Overried the default help message
-    #[clap(short='H', long, action = ArgAction::Help, help = "Prints help information")]
-    help: Option<bool>,
-
     /// width of the panel
-    #[clap(short, long, default_value = "10.0")]
+    #[arg(short, long, default_value = "10.0")]
     width: f64,
 
     /// length of the panel
-    #[clap(short, long, default_value = "100.0")]
+    #[arg(short, long, default_value = "100.0")]
     length: f64,
 
     /// height of the panel
-    #[clap(short = 'h', long, default_value = "5.0")]
+    #[arg(short = 'H', long, default_value = "5.0")]
     height: f64,
 }
 
 fn main() {
     let args = Args::parse();
+    //println!("args: {:?}", args);
+
+    let clap_metadata = Args::command();
+    println!(" arg.version: {}", clap_metadata.get_version().unwrap_or_default());
 
     // Create a panel/cuboid/rectungular box mesh
     let panel: Mesh = Mesh::cuboid(args.width, args.length, args.height, None);
