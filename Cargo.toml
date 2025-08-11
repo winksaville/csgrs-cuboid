@@ -7,3 +7,4 @@ authors = ["Wink Saville <wink@saville.com>"]
 [dependencies]
 clap = { version = "4.5.43", features = ["derive"] }
 csgrs = "0.20.1"
+nalgebra = "0.34.0"
