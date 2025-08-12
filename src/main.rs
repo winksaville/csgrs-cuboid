@@ -4,6 +4,14 @@ use nalgebra::Vector3;
 
 type Mesh = csgrs::mesh::Mesh<()>;
 
+/// This determines where the gyroid infill is generated.
+#[derive(clap::ValueEnum, Clone, Debug)]
+enum InfillPosition {
+    Outside,
+    Inside,
+    Center,
+}
+
 // TODO: Forbid dimenstions negative dimensions
 #[derive(Parser, Debug)]
 #[command(version, about = "Generate a cuboid mesh and write it to an STL file.", long_about = None)]
@@ -37,6 +45,26 @@ struct Args {
     /// This is the value that determines the density of the gyroid infill.
     #[arg(short = 'i', long, default_value = "0.0")]
     iso_value: f64,
+
+    /// Infill position
+    #[arg(short = 'I', long, default_value = "outside", value_enum)]
+    infill_position: InfillPosition,
+}
+
+fn generate_infill(infill_dimensions: Vector3<f64>, args: &Args) -> Mesh {
+    // Generate an infill pattern with the ceter_dimensions size
+    let infill_cuboid = Mesh::cuboid(
+        infill_dimensions.x,
+        infill_dimensions.y,
+        infill_dimensions.z,
+        None,
+    )
+    .translate(
+        args.wall_thickness,
+        args.wall_thickness,
+        args.wall_thickness,
+    );
+    infill_cuboid.gyroid(args.resolution, args.period, args.iso_value, None)
 }
 
 fn main() {
@@ -49,78 +77,104 @@ fn main() {
         clap_metadata.get_version().unwrap_or_default()
     );
 
-    // Create a panel/cuboid/rectungular box mesh
+    let mut outside: Mesh;
+
+    // Simple code for cuboid with a gyroid infill
     let outside_dimensions = Vector3::new(args.width, args.length, args.height);
     println!("outside_dimenstions: {:?}", outside_dimensions);
-    let mut outside: Mesh = Mesh::cuboid(
+    outside = Mesh::cuboid(
         outside_dimensions.x,
         outside_dimensions.y,
         outside_dimensions.z,
         None,
     );
 
-    // Create a hollow cuboid mesh by subtracting the inside from the outside
-    let inside_dimensions = outside_dimensions
-        - Vector3::new(
-            args.wall_thickness * 2.0,
-            args.wall_thickness * 2.0,
-            args.wall_thickness * 2.0,
-        );
-    println!("inside_dimenstions: {:?}", inside_dimensions);
-
-    if args.wall_thickness > 0.0 {
-        let inside: Mesh = Mesh::cuboid(
-            inside_dimensions.x,
-            inside_dimensions.y,
-            inside_dimensions.z,
-            None,
-        )
-        .translate(
-            args.wall_thickness,
-            args.wall_thickness,
-            args.wall_thickness,
-        );
-
-        outside = outside.difference(&inside);
-    }
-
-    if args.resolution > 0 {
-        println!(
-            "Generating gyroid infill with resolution: {}, period: {:.2}, iso_value: {:.2}",
-            args.resolution, args.period, args.iso_value
-        );
-
-        let center_dimensions = (outside_dimensions + inside_dimensions) / 2.0;
-        //let center_dimensions = inside_dimensions;
-        println!("center_dimensions: {:?}", center_dimensions);
-
-        // Generate an infill pattern with the ceter_dimensions size
-        let mut infill_cuboid = Mesh::cuboid(
-            center_dimensions.x,
-            center_dimensions.y,
-            center_dimensions.z,
-            None,
-        )
-        .translate(
-            args.wall_thickness,
-            args.wall_thickness,
-            args.wall_thickness,
-        );
+    if false {
         let resolution: usize = args.resolution; // resolution of the gyroid infill
         let period: Real = args.period as Real; // period of the gyroid infill
         let iso_value: Real = args.iso_value as Real; // isovalue of the gyroid infill
-        infill_cuboid = infill_cuboid.gyroid(resolution, period, iso_value, None);
-    
-        outside = outside.union(&infill_cuboid);
+        outside = outside.gyroid(resolution, period, iso_value, None);
+    } else {
+        // Cuboid with optional wall and optional gyroid infill
+
+        // Determine the size of the inside cuboid
+        let inside_dimensions = outside_dimensions
+            - Vector3::new(
+                args.wall_thickness * 2.0,
+                args.wall_thickness * 2.0,
+                args.wall_thickness * 2.0,
+            );
+        println!("inside_dimenstions: {:?}", inside_dimensions);
+
+        if args.wall_thickness > 0.0 {
+            // Create the inside cuboid and difference it from the outside
+            let inside: Mesh = Mesh::cuboid(
+                inside_dimensions.x,
+                inside_dimensions.y,
+                inside_dimensions.z,
+                None,
+            )
+            .translate(
+                args.wall_thickness,
+                args.wall_thickness,
+                args.wall_thickness,
+            );
+
+            outside = outside.difference(&inside);
+        }
+
+        if args.resolution > 0 {
+            println!(
+                "Generating gyroid infill with resolution: {}, period: {:.2}, iso_value: {:.2}",
+                args.resolution, args.period, args.iso_value
+            );
+
+            // The 3mf file generated by prusa-slicer for all three InfillPositions
+            // cuboid_w-40.00_l-40.00_h-40.00_t-4.00_r-50_p-2.00_i-0.00_ICO.3mf
+            match args.infill_position {
+                InfillPosition::Outside => {
+                    // Generate an infill pattern with the outside dimensions size
+                    //
+                    // cuboid_w-40.00_l-40.00_h-40.00_t-4.00_r-50_p-2.00_i-0.00_I-Outside.stl
+                    //
+                    // This generates the "walls" with the gyroid infill
+                    // because we did the difference above.
+                    println!("infill with outside_dimensions: {:?}", inside_dimensions);
+                    outside = outside.gyroid(args.resolution, args.period, args.iso_value, None);
+                }
+                InfillPosition::Inside => {
+                    // Generate an infill pattern with the inside dimensions size
+                    //
+                    // cuboid_w-40.00_l-40.00_h-40.00_t-4.00_r-50_p-2.00_i-0.00_I-Inside.stl
+                    //
+                    // Kinda works, but the walls are infilled by prusa-slicer
+                    // and the infill csgrs generates needs significant imporovement.
+                    println!("infill with inside_dimensions: {:?}", inside_dimensions);
+                    outside = outside.union(&generate_infill(inside_dimensions, &args));
+                }
+                InfillPosition::Center => {
+                    // Generate an infill pattern with the center dimensions size
+                    //
+                    // cuboid_w-40.00_l-40.00_h-40.00_t-4.00_r-50_p-2.00_i-0.00_I-Center.stl
+                    //
+                    // Missing parts of the walls and infill is worse than the others
+                    // inthat is has more solid gyroid layers.
+                    let center_dimensions = (outside_dimensions + inside_dimensions) / 2.0;
+                    println!("infill with center_dimensions: {:?}", center_dimensions);
+                    outside = outside.union(&generate_infill(center_dimensions, &args));
+                }
+            }
+        }
     }
 
     let infill_names = if args.resolution > 0 {
-            format!("_r-{:.2}", args.resolution) 
+        format!("_r-{:.2}", args.resolution)
             + &format!("_p-{:.2}", args.period)
             + &format!("_i-{:.2}", args.iso_value)
-        } else {
-            String::new()
-        };
+            + &format!("_I-{:?}", args.infill_position)
+    } else {
+        String::new()
+    };
 
     // Write the result as an ASCII STL:
     let name = "cuboid".to_owned()
@@ -128,7 +182,7 @@ fn main() {
         + &format!("_l-{:.2}", args.length)
         + &format!("_h-{:.2}", args.height)
         + &format!("_t-{:.2}", args.wall_thickness)
-        + &infill_names; 
+        + &infill_names;
     let stl = outside.to_stl_ascii(&name);
     std::fs::write(name.to_owned() + ".stl", stl).unwrap();
 }
