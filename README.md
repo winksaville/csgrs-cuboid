@@ -21,38 +21,54 @@ prusah-slicer handles that, but I'm guessing it will work.
 ## Usage
 
 ```
-$ cuboid -H
-   Compiling panel v0.1.0 (/home/wink/data/3D-Graphics-CAD-CAM/Prusa/models/panel)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.95s
-     Running `target/debug/panel -H`
-Usage: panel [OPTIONS]
+Generate a cuboid mesh and write it to an STL file.
+
+Usage: cuboid [OPTIONS]
 
 Options:
-  -H, --help             Prints help information
-  -w, --width <WIDTH>    width of the panel [default: 10.0]
-  -l, --length <LENGTH>  length of the panel [default: 100.0]
-  -h, --height <HEIGHT>  height of the panel [default: 5.0]
-  -V, --version          Print version
+  -w, --width <WIDTH>
+          width of the panel [default: 10.0]
+  -l, --length <LENGTH>
+          length of the panel [default: 100.0]
+  -H, --height <HEIGHT>
+          height of the panel [default: 5.0]
+  -t, --wall-thickness <WALL_THICKNESS>
+          wall thickness of the panel [default: 0]
+  -r, --resolution <RESOLUTION>
+          Gyroid infill resolution [default: 0]
+  -p, --period <PERIOD>
+          Gyroid infill period This is the distance between the repeating patterns in the gyroid infill [default: 2.0]
+  -i, --iso-value <ISO_VALUE>
+          Gyroid infill isovalue This is the value that determines the density of the gyroid infill [default: 0.0]
+  -I, --infill-position <INFILL_POSITION>
+          Infill position [default: outside] [possible values: outside, inside, center]
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```
 
 ## Build, run, install
 
 ```
 $ cargo build
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
 $ cargo run
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
      Running `target/debug/cuboid`
+ arg.version: 0.2.0
+outside_dimenstions: [[10.0, 100.0, 5.0]]
+Writing STL file: cuboid_w-10.00_l-100.00_h-5.00_t-0.00.stl
 $ cargo install --path .
-  Installing cuboid v0.1.0 (<snipped>)
+  Installing cuboid v0.2.0 (/home/wink/csgrs-cuboid)
     Updating crates.io index
-     Locking 229 packages to latest Rust 1.88.0 compatible versions
+     Locking 246 packages to latest Rust 1.89.0 compatible versions
       Adding i_float v1.6.0 (available: v1.15.0)
       Adding i_overlay v1.9.4 (available: v1.10.0)
       Adding i_shape v1.6.0 (available: v1.14.0)
-    Finished `release` profile [optimized] target(s) in 0.86s
+    Finished `release` profile [optimized] target(s) in 1.80s
    Replacing /home/wink/.cargo/bin/cuboid
-   Replaced package `cuboid v0.1.0 (<snipped>)` with `cuboid v0.1.0 (<snipped>)` (executable `cuboid`)
+    Replaced package `cuboid v0.2.0 (/home/wink/csgrs-cuboid)` with `cuboid v0.2.0 (/home/wink/csgrs-cuboid)` (executable `cuboid`)
 ```
 
 ## Results
